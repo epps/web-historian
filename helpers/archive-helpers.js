@@ -14,6 +14,7 @@ var request = require('request');
 exports.paths = {
   siteAssets: path.join(__dirname, '../web/public'),
   archivedSites: path.join(__dirname, '../archives/sites'),
+  testArchives: path.join(__dirname, '../web/archives/sites'),
   list: path.join(__dirname, '../archives/sites.txt')
 };
 
@@ -51,24 +52,31 @@ exports.addUrlToList = function(uri,callback){
   });
 };
 
-exports.isUrlArchived = function(uri, callback){
-  exports.isUrlInList(uri, function(found) {
-    var uriPath = path.join(exports.paths.archivedSites, url.parse("http://" + uri).hostname + ".html");
-    fs.exists(uriPath, function() {
-      callback();
-    });
+/* For CRON */
+
+exports.createPath = function(uri, callback) {
+  var uriPath = path.join(exports.paths.archivedSites, url.parse("http://" + uri).hostname);
+
+   callback(uriPath);
+}
+
+exports.isUrlArchived = function(uriPath, callback){
+  // var uriPath = path.join(exports.paths.archivedSites, url.parse("http://" + uri).hostname);
+  fs.exists(uriPath, function(exists) {
+    callback(exists);
   });
 };
 
-exports.downloadUrls = function(uri, callback){
 
-      request(uri).pipe(fs.createWriteStream(exports.paths.archivedSites));
-    }
-
-
-  // what if there are multiple urls? can we split on /n? is it an array?
-  // can we use a length property?
-  request(uri).pipe(fs.createWriteStream(exports.paths.archivedSites));
+exports.downloadUrls = function(listUrls){
+  listUrls.forEach(function(url) {
+    exports.isUrlArchived(url, function(isArchived) {
+      if(!isArchived) {
+        var newPath = path.join(exports.paths.archivedSites + "/" + url);
+        request('http://' + url).pipe(fs.createWriteStream(newPath));
+      }
+    });
+  });
 };
 
 
